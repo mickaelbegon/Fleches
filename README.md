@@ -22,7 +22,14 @@ du faisceau.
 
 ## Installation laptop
 
-Installer la dependance serie pour communiquer avec le Pico :
+Creer et activer l'environnement conda :
+
+```bash
+conda env create -f environment.yml
+conda activate fleches
+```
+
+Ou installer seulement la dependance serie dans un environnement Python existant :
 
 ```bash
 python -m pip install pyserial
