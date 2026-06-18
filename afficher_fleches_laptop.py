@@ -22,8 +22,9 @@ DIRECTIONS = {
 DEFAULT_CLEAR_AFTER_MS = 3000
 DEFAULT_ANIMATION_MS = 280
 ARROW_FONT_FAMILY = "Arial"
-ARROW_FONT_MIN = 220
-ARROW_FONT_MAX = 290
+ARROW_FONT_BASE = 340
+ARROW_FONT_MIN = 300
+ARROW_FONT_MAX = 380
 LABEL_FONT_SIZE = 70
 KEY_REPEAT_GUARD_MS = 160
 PYSERIAL_MESSAGE = (
@@ -120,7 +121,7 @@ class Application:
         self.arrow_label = tk.Label(
             root,
             text="",
-            font=(ARROW_FONT_FAMILY, ARROW_FONT_MAX, "bold"),
+            font=(ARROW_FONT_FAMILY, ARROW_FONT_BASE, "bold"),
             fg="white",
             bg="black",
         )
@@ -200,9 +201,9 @@ class Application:
         etapes = [
             (0.0, ARROW_FONT_MIN, "#7dd3fc"),
             (0.18, ARROW_FONT_MAX, "white"),
-            (0.42, 255, "#f8fafc"),
-            (0.70, 272, "white"),
-            (1.0, 260, "white"),
+            (0.42, 325, "#f8fafc"),
+            (0.70, 355, "white"),
+            (1.0, ARROW_FONT_BASE, "white"),
         ]
 
         for ratio, taille, couleur in etapes:
@@ -227,7 +228,9 @@ class Application:
                 pass
 
         self.animation_jobs.clear()
-        self.arrow_label.config(font=(ARROW_FONT_FAMILY, 260, "bold"), fg="white")
+        self.arrow_label.config(
+            font=(ARROW_FONT_FAMILY, ARROW_FONT_BASE, "bold"), fg="white"
+        )
         self.text_label.config(fg="white")
 
     def traiter_messages(self):
