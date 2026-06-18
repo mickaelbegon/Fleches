@@ -27,6 +27,7 @@ MAX_ARROW_SIZE = 950
 ARROW_HEAD_LENGTH_RATIO = 0.38
 ARROW_HEAD_WIDTH_RATIO = 0.72
 ARROW_SHAFT_WIDTH_RATIO = 0.34
+TEXT_FONT_FAMILY = "Arial"
 LABEL_FONT_SIZE = 48
 STATUS_FONT_SIZE = 14
 KEY_REPEAT_GUARD_MS = 160
@@ -148,7 +149,7 @@ class Application:
         self.text_label = tk.Label(
             root,
             text="PRET",
-            font=(ARROW_FONT_FAMILY, LABEL_FONT_SIZE, "bold"),
+            font=(TEXT_FONT_FAMILY, LABEL_FONT_SIZE, "bold"),
             fg="white",
             bg="black",
         )
