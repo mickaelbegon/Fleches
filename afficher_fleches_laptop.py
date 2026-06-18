@@ -14,17 +14,17 @@ except ModuleNotFoundError:
 
 
 DIRECTIONS = {
-    "UP": {"arrow": "↑", "label": "AVANT"},
-    "LEFT": {"arrow": "←", "label": "GAUCHE"},
-    "RIGHT": {"arrow": "→", "label": "DROITE"},
+    "UP": {"arrow": "⬆", "label": "AVANT"},
+    "LEFT": {"arrow": "⬅", "label": "GAUCHE"},
+    "RIGHT": {"arrow": "➡", "label": "DROITE"},
 }
 
 DEFAULT_CLEAR_AFTER_MS = 3000
 DEFAULT_ANIMATION_MS = 280
 ARROW_FONT_FAMILY = "Arial"
-ARROW_FONT_BASE = 340
-ARROW_FONT_MIN = 300
-ARROW_FONT_MAX = 380
+ARROW_FONT_BASE = 430
+ARROW_FONT_MIN = 380
+ARROW_FONT_MAX = 480
 LABEL_FONT_SIZE = 70
 KEY_REPEAT_GUARD_MS = 160
 PYSERIAL_MESSAGE = (
@@ -201,8 +201,8 @@ class Application:
         etapes = [
             (0.0, ARROW_FONT_MIN, "#7dd3fc"),
             (0.18, ARROW_FONT_MAX, "white"),
-            (0.42, 325, "#f8fafc"),
-            (0.70, 355, "white"),
+            (0.42, 405, "#f8fafc"),
+            (0.70, 455, "white"),
             (1.0, ARROW_FONT_BASE, "white"),
         ]
 
