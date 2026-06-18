@@ -64,11 +64,13 @@ Options utiles :
 python afficher_fleches_laptop.py --windowed
 python afficher_fleches_laptop.py --clear-after-ms 0
 python afficher_fleches_laptop.py --animation-ms 0
+python afficher_fleches_laptop.py --arrow-size 700
 ```
 
 - `--windowed` : lance l'application dans une fenetre au lieu du plein ecran.
 - `--clear-after-ms` : temps d'affichage avant retour a `PRET`. Mettre `0` pour garder la fleche.
 - `--animation-ms` : duree de l'animation. Mettre `0` pour la desactiver.
+- `--arrow-size` : taille initiale de la fleche. Un slider permet ensuite de l'ajuster en direct.
 
 ## Touches
 

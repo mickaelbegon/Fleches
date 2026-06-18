@@ -14,17 +14,19 @@ except ModuleNotFoundError:
 
 
 DIRECTIONS = {
-    "UP": {"arrow": "⬆", "label": "AVANT"},
-    "LEFT": {"arrow": "⬅", "label": "GAUCHE"},
-    "RIGHT": {"arrow": "➡", "label": "DROITE"},
+    "UP": {"label": "AVANT"},
+    "LEFT": {"label": "GAUCHE"},
+    "RIGHT": {"label": "DROITE"},
 }
 
 DEFAULT_CLEAR_AFTER_MS = 3000
 DEFAULT_ANIMATION_MS = 280
-ARROW_FONT_FAMILY = "Arial"
-ARROW_FONT_BASE = 430
-ARROW_FONT_MIN = 380
-ARROW_FONT_MAX = 480
+DEFAULT_ARROW_SIZE = 620
+MIN_ARROW_SIZE = 260
+MAX_ARROW_SIZE = 950
+ARROW_HEAD_LENGTH_RATIO = 0.38
+ARROW_HEAD_WIDTH_RATIO = 0.72
+ARROW_SHAFT_WIDTH_RATIO = 0.34
 LABEL_FONT_SIZE = 48
 STATUS_FONT_SIZE = 14
 KEY_REPEAT_GUARD_MS = 160
@@ -97,18 +99,32 @@ def lecteur_serie(port, baudrate, file_messages, arret):
 
 
 class Application:
-    def __init__(self, root, port, baudrate, clear_after_ms, animation_ms, fullscreen):
+    def __init__(
+        self,
+        root,
+        port,
+        baudrate,
+        clear_after_ms,
+        animation_ms,
+        arrow_size,
+        fullscreen,
+    ):
         self.root = root
         self.port = port
         self.baudrate = baudrate
         self.clear_after_ms = clear_after_ms
         self.animation_ms = animation_ms
+        taille_initiale = max(MIN_ARROW_SIZE, min(MAX_ARROW_SIZE, arrow_size))
 
         self.file_messages = Queue()
         self.arret = threading.Event()
         self.clear_job = None
         self.animation_jobs = []
         self.last_manual_trigger = 0.0
+        self.current_direction = None
+        self.current_arrow_size = taille_initiale
+        self.current_arrow_color = "white"
+        self.arrow_size_var = tk.IntVar(value=taille_initiale)
 
         self.root.title("Directions aleatoires")
         self.root.configure(bg="black")
@@ -121,14 +137,13 @@ class Application:
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
 
-        self.arrow_label = tk.Label(
+        self.arrow_canvas = tk.Canvas(
             root,
-            text="",
-            font=(ARROW_FONT_FAMILY, ARROW_FONT_BASE, "bold"),
-            fg="white",
             bg="black",
+            highlightthickness=0,
         )
-        self.arrow_label.grid(row=0, column=0, sticky="nsew")
+        self.arrow_canvas.grid(row=0, column=0, sticky="nsew")
+        self.arrow_canvas.bind("<Configure>", lambda event: self.redessiner_fleche())
 
         self.text_label = tk.Label(
             root,
@@ -139,6 +154,24 @@ class Application:
         )
         self.text_label.grid(row=1, column=0, pady=(0, 4), sticky="ew")
 
+        self.size_slider = tk.Scale(
+            root,
+            from_=MIN_ARROW_SIZE,
+            to=MAX_ARROW_SIZE,
+            orient="horizontal",
+            variable=self.arrow_size_var,
+            command=self.modifier_taille_fleche,
+            showvalue=True,
+            resolution=10,
+            length=520,
+            bg="black",
+            fg="white",
+            troughcolor="#222222",
+            highlightthickness=0,
+        )
+        self.size_slider.grid(row=2, column=0, pady=(0, 4))
+        self.size_slider.bind("<space>", self.declencher_manuellement)
+
         self.status_label = tk.Label(
             root,
             text="Echap ou q pour quitter. Barre espace = declencher une animation.",
@@ -146,7 +179,7 @@ class Application:
             fg="gray",
             bg="black",
         )
-        self.status_label.grid(row=2, column=0, pady=(0, 8), sticky="ew")
+        self.status_label.grid(row=3, column=0, pady=(0, 8), sticky="ew")
 
         if serial is None:
             self.status_label.config(text=f"{PYSERIAL_MESSAGE}. Espace = test.")
@@ -166,14 +199,18 @@ class Application:
 
     def afficher_pret(self):
         self.annuler_animation()
-        self.arrow_label.config(text="")
+        self.current_direction = None
+        self.arrow_canvas.delete("all")
         self.text_label.config(text="PRET", fg="white")
         self.clear_job = None
 
     def afficher_direction(self, direction):
         self.annuler_animation()
         data = DIRECTIONS[direction]
-        self.arrow_label.config(text=data["arrow"])
+        self.current_direction = direction
+        self.current_arrow_size = self.arrow_size_var.get()
+        self.current_arrow_color = "white"
+        self.redessiner_fleche()
         self.text_label.config(text=data["label"])
         self.lancer_animation()
 
@@ -197,16 +234,70 @@ class Application:
         self.file_messages.put(("TRIGGER", "clavier"))
         return "break"
 
+    def modifier_taille_fleche(self, valeur):
+        if self.current_direction is None:
+            return
+
+        self.current_arrow_size = int(float(valeur))
+        self.redessiner_fleche()
+
+    def redessiner_fleche(self):
+        self.arrow_canvas.delete("all")
+
+        if self.current_direction is None:
+            return
+
+        largeur = max(self.arrow_canvas.winfo_width(), 1)
+        hauteur = max(self.arrow_canvas.winfo_height(), 1)
+        taille = min(self.current_arrow_size, int(largeur * 0.92), int(hauteur * 0.92))
+        points = self.points_fleche(
+            self.current_direction, taille, largeur / 2, hauteur / 2
+        )
+        self.arrow_canvas.create_polygon(
+            points,
+            fill=self.current_arrow_color,
+            outline=self.current_arrow_color,
+        )
+
+    def points_fleche(self, direction, taille, centre_x, centre_y):
+        demi = taille / 2
+        tete = taille * ARROW_HEAD_LENGTH_RATIO
+        largeur_tete = taille * ARROW_HEAD_WIDTH_RATIO
+        largeur_corps = taille * ARROW_SHAFT_WIDTH_RATIO
+        base_tete = demi - tete
+
+        points = [
+            (-demi, -largeur_corps / 2),
+            (base_tete, -largeur_corps / 2),
+            (base_tete, -largeur_tete / 2),
+            (demi, 0),
+            (base_tete, largeur_tete / 2),
+            (base_tete, largeur_corps / 2),
+            (-demi, largeur_corps / 2),
+        ]
+
+        if direction == "LEFT":
+            points = [(-x, y) for x, y in points]
+        elif direction == "UP":
+            points = [(y, -x) for x, y in points]
+
+        return [
+            coord
+            for x, y in points
+            for coord in (centre_x + x, centre_y + y)
+        ]
+
     def lancer_animation(self):
         if self.animation_ms <= 0:
             return
 
+        taille_base = self.arrow_size_var.get()
         etapes = [
-            (0.0, ARROW_FONT_MIN, "#7dd3fc"),
-            (0.18, ARROW_FONT_MAX, "white"),
-            (0.42, ARROW_FONT_BASE - 25, "#f8fafc"),
-            (0.70, ARROW_FONT_BASE + 25, "white"),
-            (1.0, ARROW_FONT_BASE, "white"),
+            (0.0, max(MIN_ARROW_SIZE, int(taille_base * 0.86)), "#7dd3fc"),
+            (0.18, min(MAX_ARROW_SIZE, int(taille_base * 1.12)), "white"),
+            (0.42, max(MIN_ARROW_SIZE, int(taille_base * 0.95)), "#f8fafc"),
+            (0.70, min(MAX_ARROW_SIZE, int(taille_base * 1.06)), "white"),
+            (1.0, taille_base, "white"),
         ]
 
         for ratio, taille, couleur in etapes:
@@ -220,7 +311,9 @@ class Application:
             self.animation_jobs.append(job)
 
     def appliquer_animation(self, taille, couleur):
-        self.arrow_label.config(font=(ARROW_FONT_FAMILY, taille, "bold"), fg=couleur)
+        self.current_arrow_size = taille
+        self.current_arrow_color = couleur
+        self.redessiner_fleche()
         self.text_label.config(fg=couleur)
 
     def annuler_animation(self):
@@ -231,9 +324,9 @@ class Application:
                 pass
 
         self.animation_jobs.clear()
-        self.arrow_label.config(
-            font=(ARROW_FONT_FAMILY, ARROW_FONT_BASE, "bold"), fg="white"
-        )
+        self.current_arrow_size = self.arrow_size_var.get()
+        self.current_arrow_color = "white"
+        self.redessiner_fleche()
         self.text_label.config(fg="white")
 
     def traiter_messages(self):
@@ -282,6 +375,12 @@ def main():
         help="Duree de l'animation de declenchement. 0 desactive l'animation.",
     )
     parser.add_argument(
+        "--arrow-size",
+        type=int,
+        default=DEFAULT_ARROW_SIZE,
+        help="Taille initiale de la fleche. Ajustable ensuite avec le slider.",
+    )
+    parser.add_argument(
         "--windowed",
         action="store_true",
         help="Lancer dans une fenetre au lieu du plein ecran.",
@@ -297,6 +396,7 @@ def main():
         args.baudrate,
         args.clear_after_ms,
         args.animation_ms,
+        args.arrow_size,
         fullscreen=not args.windowed,
     )
     root.mainloop()
