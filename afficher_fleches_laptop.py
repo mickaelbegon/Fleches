@@ -40,7 +40,7 @@ def trouver_port_auto():
     if list_ports is None:
         return None
 
-    ports = list(list_ports.comports())
+    ports = lister_ports_disponibles()
 
     if not ports:
         return None
@@ -55,14 +55,30 @@ def trouver_port_auto():
     ]
 
     for port in ports:
-        texte = f"{port.device} {port.description} {port.manufacturer}".lower()
+        texte = (
+            f"{port['device']} {port['description']} {port['manufacturer']}"
+        ).lower()
         if any(mot in texte for mot in mots_cles):
-            return port.device
+            return port["device"]
 
     if len(ports) == 1:
-        return ports[0].device
+        return ports[0]["device"]
 
     return None
+
+
+def lister_ports_disponibles():
+    if list_ports is None:
+        return []
+
+    return [
+        {
+            "device": port.device,
+            "description": port.description or "",
+            "manufacturer": port.manufacturer or "",
+        }
+        for port in list_ports.comports()
+    ]
 
 
 def lecteur_serie(port, baudrate, file_messages, arret):
@@ -119,6 +135,8 @@ class Application:
 
         self.file_messages = Queue()
         self.arret = threading.Event()
+        self.lecture_arret = None
+        self.thread = None
         self.clear_job = None
         self.animation_jobs = []
         self.last_manual_trigger = 0.0
@@ -173,6 +191,55 @@ class Application:
         self.size_slider.grid(row=2, column=0, pady=(0, 4))
         self.size_slider.bind("<space>", self.declencher_manuellement)
 
+        self.port_frame = tk.Frame(root, bg="black")
+        self.port_frame.grid(row=3, column=0, pady=(0, 4))
+
+        self.selected_port_var = tk.StringVar(value="")
+        self.port_label = tk.Label(
+            self.port_frame,
+            text="Port serie",
+            font=("Arial", STATUS_FONT_SIZE),
+            fg="white",
+            bg="black",
+        )
+        self.port_label.pack(side="left", padx=(0, 8))
+
+        self.port_menu = tk.OptionMenu(self.port_frame, self.selected_port_var, "")
+        self.port_menu.config(
+            bg="#111111",
+            fg="white",
+            activebackground="#222222",
+            activeforeground="white",
+            highlightthickness=0,
+            width=24,
+        )
+        self.port_menu["menu"].config(bg="#111111", fg="white")
+        self.port_menu.pack(side="left", padx=(0, 8))
+
+        self.refresh_button = tk.Button(
+            self.port_frame,
+            text="Rafraichir",
+            command=self.actualiser_ports,
+            bg="#222222",
+            fg="white",
+            activebackground="#333333",
+            activeforeground="white",
+            highlightthickness=0,
+        )
+        self.refresh_button.pack(side="left", padx=(0, 8))
+
+        self.connect_button = tk.Button(
+            self.port_frame,
+            text="Connecter",
+            command=self.connecter_port_selectionne,
+            bg="#222222",
+            fg="white",
+            activebackground="#333333",
+            activeforeground="white",
+            highlightthickness=0,
+        )
+        self.connect_button.pack(side="left")
+
         self.status_label = tk.Label(
             root,
             text="Echap ou q pour quitter. Barre espace = declencher une animation.",
@@ -180,21 +247,19 @@ class Application:
             fg="gray",
             bg="black",
         )
-        self.status_label.grid(row=3, column=0, pady=(0, 8), sticky="ew")
+        self.status_label.grid(row=4, column=0, pady=(0, 8), sticky="ew")
 
         if serial is None:
             self.status_label.config(text=f"{PYSERIAL_MESSAGE}. Espace = test.")
-        elif self.port is None:
-            self.status_label.config(
-                text="Aucun port serie detecte. Relancer avec --port COMx ou /dev/ttyACM0."
-            )
+            self.refresh_button.config(state="disabled")
+            self.connect_button.config(state="disabled")
+            self.port_menu.config(state="disabled")
         else:
-            self.thread = threading.Thread(
-                target=lecteur_serie,
-                args=(self.port, self.baudrate, self.file_messages, self.arret),
-                daemon=True,
-            )
-            self.thread.start()
+            self.actualiser_ports(selection=self.port)
+            if self.port is None:
+                self.status_label.config(text="Aucun port serie detecte.")
+            else:
+                self.connecter_port(self.port)
 
         self.root.after(50, self.traiter_messages)
 
@@ -234,6 +299,68 @@ class Application:
         self.last_manual_trigger = maintenant
         self.file_messages.put(("TRIGGER", "clavier"))
         return "break"
+
+    def actualiser_ports(self, selection=None):
+        ports = lister_ports_disponibles()
+        devices = [port["device"] for port in ports]
+
+        if selection is not None and selection not in devices:
+            devices.insert(0, selection)
+
+        menu = self.port_menu["menu"]
+        menu.delete(0, "end")
+
+        if not devices:
+            self.selected_port_var.set("")
+            menu.add_command(label="Aucun port", command=lambda: None)
+            self.connect_button.config(state="disabled")
+            self.status_label.config(text="Aucun port serie detecte.")
+            return
+
+        for device in devices:
+            menu.add_command(
+                label=device,
+                command=lambda device=device: self.selected_port_var.set(device),
+            )
+
+        self.connect_button.config(state="normal")
+        if selection in devices:
+            self.selected_port_var.set(selection)
+        elif self.selected_port_var.get() not in devices:
+            self.selected_port_var.set(devices[0])
+
+    def connecter_port_selectionne(self):
+        port = self.selected_port_var.get()
+        if not port:
+            self.status_label.config(text="Aucun port serie selectionne.")
+            return
+
+        self.connecter_port(port)
+
+    def connecter_port(self, port):
+        if serial is None:
+            self.status_label.config(text=f"{PYSERIAL_MESSAGE}. Espace = test.")
+            return
+
+        if self.thread is not None and self.thread.is_alive() and self.port == port:
+            self.status_label.config(text=f"Deja connecte : {port}")
+            return
+
+        self.arreter_lecture_serie()
+        self.port = port
+        self.lecture_arret = threading.Event()
+        self.thread = threading.Thread(
+            target=lecteur_serie,
+            args=(port, self.baudrate, self.file_messages, self.lecture_arret),
+            daemon=True,
+        )
+        self.thread.start()
+        self.status_label.config(text=f"Connexion : {port}")
+
+    def arreter_lecture_serie(self):
+        if self.lecture_arret is not None:
+            self.lecture_arret.set()
+            self.lecture_arret = None
 
     def modifier_taille_fleche(self, valeur):
         if self.current_direction is None:
@@ -349,6 +476,7 @@ class Application:
 
     def quitter(self, event=None):
         self.arret.set()
+        self.arreter_lecture_serie()
         self.root.destroy()
 
 

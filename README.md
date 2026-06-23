@@ -50,6 +50,10 @@ Lancer l'affichage avec detection automatique du port :
 python afficher_fleches_laptop.py
 ```
 
+Dans l'application, le menu `Port serie` permet aussi de choisir un port parmi
+ceux disponibles. Utiliser `Rafraichir` apres avoir branche le Pico, puis
+`Connecter`.
+
 Ou fournir le port explicitement :
 
 ```bash
