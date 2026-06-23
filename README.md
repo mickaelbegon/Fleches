@@ -50,9 +50,10 @@ Lancer l'affichage avec detection automatique du port :
 python afficher_fleches_laptop.py
 ```
 
-Dans l'application, le menu `Port serie` permet aussi de choisir un port parmi
-ceux disponibles. Utiliser `Rafraichir` apres avoir branche le Pico, puis
-`Connecter`.
+Dans l'application, le menu `Port USB/serie` permet aussi de choisir un port
+parmi ceux disponibles. Sur macOS, meme avec un cable USB-C, le Pico apparait
+souvent comme `/dev/cu.usbmodem...` ou `/dev/tty.usbmodem...`. Utiliser
+`Rafraichir` apres avoir branche le Pico, puis `Connecter`.
 
 Ou fournir le port explicitement :
 

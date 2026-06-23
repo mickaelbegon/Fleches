@@ -30,6 +30,9 @@ ARROW_SHAFT_WIDTH_RATIO = 0.34
 TEXT_FONT_FAMILY = "Arial"
 LABEL_FONT_SIZE = 48
 STATUS_FONT_SIZE = 14
+CONTROL_BG = "white"
+CONTROL_FG = "black"
+CONTROL_ACTIVE_BG = "#e6e6e6"
 KEY_REPEAT_GUARD_MS = 160
 PYSERIAL_MESSAGE = (
     "pyserial non installe. Installer avec : python -m pip install pyserial"
@@ -197,7 +200,7 @@ class Application:
         self.selected_port_var = tk.StringVar(value="")
         self.port_label = tk.Label(
             self.port_frame,
-            text="Port serie",
+            text="Port USB/serie",
             font=("Arial", STATUS_FONT_SIZE),
             fg="white",
             bg="black",
@@ -206,24 +209,24 @@ class Application:
 
         self.port_menu = tk.OptionMenu(self.port_frame, self.selected_port_var, "")
         self.port_menu.config(
-            bg="#111111",
-            fg="white",
-            activebackground="#222222",
-            activeforeground="white",
+            bg=CONTROL_BG,
+            fg=CONTROL_FG,
+            activebackground=CONTROL_ACTIVE_BG,
+            activeforeground=CONTROL_FG,
             highlightthickness=0,
             width=24,
         )
-        self.port_menu["menu"].config(bg="#111111", fg="white")
+        self.port_menu["menu"].config(bg=CONTROL_BG, fg=CONTROL_FG)
         self.port_menu.pack(side="left", padx=(0, 8))
 
         self.refresh_button = tk.Button(
             self.port_frame,
             text="Rafraichir",
             command=self.actualiser_ports,
-            bg="#222222",
-            fg="white",
-            activebackground="#333333",
-            activeforeground="white",
+            bg=CONTROL_BG,
+            fg=CONTROL_FG,
+            activebackground=CONTROL_ACTIVE_BG,
+            activeforeground=CONTROL_FG,
             highlightthickness=0,
         )
         self.refresh_button.pack(side="left", padx=(0, 8))
@@ -232,10 +235,10 @@ class Application:
             self.port_frame,
             text="Connecter",
             command=self.connecter_port_selectionne,
-            bg="#222222",
-            fg="white",
-            activebackground="#333333",
-            activeforeground="white",
+            bg=CONTROL_BG,
+            fg=CONTROL_FG,
+            activebackground=CONTROL_ACTIVE_BG,
+            activeforeground=CONTROL_FG,
             highlightthickness=0,
         )
         self.connect_button.pack(side="left")
