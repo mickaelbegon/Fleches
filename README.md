@@ -45,10 +45,28 @@ Lister les ports disponibles :
 python -m serial.tools.list_ports
 ```
 
+Avec le lanceur conda de ce Mac :
+
+```bash
+/Users/mickaelbegon/miniconda3/bin/conda run -n fleches python -m serial.tools.list_ports -v
+```
+
 Lancer l'affichage avec detection automatique du port :
 
 ```bash
 python afficher_fleches_laptop.py
+```
+
+Sur ce Mac, si `conda` n'est pas dans le `PATH`, utiliser le lanceur :
+
+```bash
+./run_mac.command
+```
+
+ou la commande explicite :
+
+```bash
+/Users/mickaelbegon/miniconda3/bin/conda run -n fleches python afficher_fleches_laptop.py
 ```
 
 Dans l'application, le menu `Port USB/serie` permet aussi de choisir un port
