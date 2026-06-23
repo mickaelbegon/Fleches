@@ -108,6 +108,21 @@ python afficher_fleches_laptop.py --arrow-size 700
 - `--animation-ms` : duree de l'animation. Mettre `0` pour la desactiver.
 - `--arrow-size` : taille initiale de la fleche. Un slider permet ensuite de l'ajuster en direct.
 
+## Bloc de conditions
+
+Dans la zone `Bloc`, entrer le nombre voulu de conditions discretes :
+
+- `Droite`
+- `Gauche`
+- `Tout droit`
+
+Cliquer ensuite sur `Generer bloc`. L'application melange ces conditions et les
+utilise une par une a chaque declenchement capteur ou barre espace. Le compteur
+indique combien de conditions restent dans le bloc. Quand le bloc est vide,
+l'application revient a l'aleatoire simple.
+
+Le bouton `Vider` annule le bloc en cours.
+
 ## Touches
 
 - `Espace` : declenche une nouvelle fleche animee, comme le capteur.

@@ -22,6 +22,7 @@ DIRECTIONS = {
 DEFAULT_CLEAR_AFTER_MS = 3000
 DEFAULT_ANIMATION_MS = 280
 DEFAULT_ARROW_SIZE = 620
+DEFAULT_BLOCK_COUNT = 0
 MIN_ARROW_SIZE = 260
 MAX_ARROW_SIZE = 950
 ARROW_HEAD_LENGTH_RATIO = 0.38
@@ -178,6 +179,13 @@ class Application:
         self.arrow_size_var = tk.IntVar(value=taille_initiale)
         self.afficher_tous_ports = False
         self.cut_count = 0
+        self.block_sequence = []
+        self.block_total = 0
+        self.block_count_vars = {
+            "RIGHT": tk.IntVar(value=DEFAULT_BLOCK_COUNT),
+            "LEFT": tk.IntVar(value=DEFAULT_BLOCK_COUNT),
+            "UP": tk.IntVar(value=DEFAULT_BLOCK_COUNT),
+        }
 
         self.root.title("Directions aleatoires")
         self.root.configure(bg="black")
@@ -225,8 +233,57 @@ class Application:
         self.size_slider.grid(row=2, column=0, pady=(0, 4))
         self.size_slider.bind("<space>", self.declencher_manuellement)
 
+        self.block_frame = tk.Frame(root, bg="black")
+        self.block_frame.grid(row=3, column=0, pady=(0, 4))
+
+        self.block_title = tk.Label(
+            self.block_frame,
+            text="Bloc",
+            font=("Arial", STATUS_FONT_SIZE),
+            fg="white",
+            bg="black",
+        )
+        self.block_title.pack(side="left", padx=(0, 8))
+
+        self.right_count_spinbox = self.creer_spinbox_bloc("Droite", "RIGHT")
+        self.left_count_spinbox = self.creer_spinbox_bloc("Gauche", "LEFT")
+        self.up_count_spinbox = self.creer_spinbox_bloc("Tout droit", "UP")
+
+        self.block_button = tk.Button(
+            self.block_frame,
+            text="Generer bloc",
+            command=self.generer_bloc,
+            bg=CONTROL_BG,
+            fg=CONTROL_FG,
+            activebackground=CONTROL_ACTIVE_BG,
+            activeforeground=CONTROL_FG,
+            highlightthickness=0,
+        )
+        self.block_button.pack(side="left", padx=(8, 0))
+
+        self.clear_block_button = tk.Button(
+            self.block_frame,
+            text="Vider",
+            command=self.vider_bloc,
+            bg=CONTROL_BG,
+            fg=CONTROL_FG,
+            activebackground=CONTROL_ACTIVE_BG,
+            activeforeground=CONTROL_FG,
+            highlightthickness=0,
+        )
+        self.clear_block_button.pack(side="left", padx=(8, 0))
+
+        self.block_status_label = tk.Label(
+            self.block_frame,
+            text="Bloc vide : aleatoire simple",
+            font=("Arial", STATUS_FONT_SIZE),
+            fg="gray",
+            bg="black",
+        )
+        self.block_status_label.pack(side="left", padx=(12, 0))
+
         self.port_frame = tk.Frame(root, bg="black")
-        self.port_frame.grid(row=3, column=0, pady=(0, 4))
+        self.port_frame.grid(row=4, column=0, pady=(0, 4))
 
         self.selected_port_var = tk.StringVar(value="")
         self.port_label = tk.Label(
@@ -293,7 +350,7 @@ class Application:
             fg="gray",
             bg="black",
         )
-        self.status_label.grid(row=4, column=0, pady=(0, 8), sticky="ew")
+        self.status_label.grid(row=5, column=0, pady=(0, 8), sticky="ew")
 
         self.serial_debug_label = tk.Label(
             root,
@@ -302,7 +359,7 @@ class Application:
             fg="gray",
             bg="black",
         )
-        self.serial_debug_label.grid(row=5, column=0, pady=(0, 8), sticky="ew")
+        self.serial_debug_label.grid(row=6, column=0, pady=(0, 8), sticky="ew")
 
         if serial is None:
             self.status_label.config(text=f"{PYSERIAL_MESSAGE}. Espace = test.")
@@ -344,7 +401,7 @@ class Application:
             self.clear_job = self.root.after(self.clear_after_ms, self.afficher_pret)
 
     def afficher_direction_aleatoire(self):
-        direction = random.choice(list(DIRECTIONS.keys()))
+        direction = self.prochaine_direction()
         self.afficher_direction(direction)
 
     def declencher_manuellement(self, event=None):
@@ -355,6 +412,72 @@ class Application:
         self.last_manual_trigger = maintenant
         self.file_messages.put(("TRIGGER", "clavier"))
         return "break"
+
+    def creer_spinbox_bloc(self, texte, direction):
+        label = tk.Label(
+            self.block_frame,
+            text=texte,
+            font=("Arial", STATUS_FONT_SIZE),
+            fg="white",
+            bg="black",
+        )
+        label.pack(side="left", padx=(0, 4))
+
+        spinbox = tk.Spinbox(
+            self.block_frame,
+            from_=0,
+            to=999,
+            width=4,
+            textvariable=self.block_count_vars[direction],
+            bg=CONTROL_BG,
+            fg=CONTROL_FG,
+            buttonbackground=CONTROL_ACTIVE_BG,
+            highlightthickness=0,
+        )
+        spinbox.pack(side="left", padx=(0, 8))
+        spinbox.bind("<space>", self.declencher_manuellement)
+        return spinbox
+
+    def lire_compte_bloc(self, direction):
+        try:
+            return max(0, int(self.block_count_vars[direction].get()))
+        except (tk.TclError, ValueError):
+            self.block_count_vars[direction].set(0)
+            return 0
+
+    def generer_bloc(self):
+        sequence = []
+        for direction in ("RIGHT", "LEFT", "UP"):
+            sequence.extend([direction] * self.lire_compte_bloc(direction))
+
+        random.shuffle(sequence)
+        self.block_sequence = sequence
+        self.block_total = len(sequence)
+        self.mettre_a_jour_statut_bloc()
+
+    def vider_bloc(self):
+        self.block_sequence = []
+        self.block_total = 0
+        self.mettre_a_jour_statut_bloc()
+
+    def prochaine_direction(self):
+        if self.block_sequence:
+            direction = self.block_sequence.pop(0)
+            self.mettre_a_jour_statut_bloc()
+            return direction
+
+        return random.choice(list(DIRECTIONS.keys()))
+
+    def mettre_a_jour_statut_bloc(self):
+        restant = len(self.block_sequence)
+        if self.block_total == 0:
+            self.block_status_label.config(text="Bloc vide : aleatoire simple")
+        elif restant == 0:
+            self.block_status_label.config(text="Bloc termine : aleatoire simple")
+        else:
+            self.block_status_label.config(
+                text=f"Bloc : {restant}/{self.block_total} restants"
+            )
 
     def actualiser_ports(self, selection=None):
         ports = lister_ports_disponibles(inclure_systeme=self.afficher_tous_ports)
