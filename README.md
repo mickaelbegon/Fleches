@@ -16,7 +16,8 @@ du faisceau.
 
 ## Fichiers
 
-- `main_pico.py` : code MicroPython final a copier sur le Pico sous le nom `main.py`.
+- `main.py` : code MicroPython pret a copier directement sur le Pico.
+- `main_pico.py` : version source/commentee du code Pico.
 - `test_capteur_pico.py` : script de test pour lire la valeur brute du capteur.
 - `afficher_fleches_laptop.py` : application Python a lancer sur le laptop.
 
@@ -93,8 +94,8 @@ python afficher_fleches_laptop.py --arrow-size 700
 2. Ouvrir Thonny.
 3. Copier et lancer `test_capteur_pico.py`.
 4. Noter la valeur `RAW` lorsque le faisceau est aligne et lorsqu'il est coupe.
-5. Ajuster `FAISCEAU_COUPE_NIVEAU` dans `main_pico.py`.
-6. Copier `main_pico.py` sur le Pico sous le nom `main.py`.
+5. Ajuster `FAISCEAU_COUPE_NIVEAU` dans `main.py`.
+6. Copier `main.py` sur le Pico.
 7. Fermer Thonny avant de lancer l'application laptop, sinon le port serie peut rester occupe.
 
 ## Protocole serie
