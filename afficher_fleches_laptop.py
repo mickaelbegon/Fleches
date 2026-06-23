@@ -128,7 +128,12 @@ def lecteur_serie(port, baudrate, file_messages, arret):
 
                     message = ligne.decode("utf-8", errors="ignore").strip().upper()
 
-                    if message == "CUT":
+                    if not message:
+                        continue
+
+                    file_messages.put(("SERIAL", message))
+
+                    if "CUT" in message:
                         file_messages.put(("TRIGGER", "capteur"))
                     elif message in DIRECTIONS:
                         file_messages.put(("DIRECTION", message))
@@ -172,6 +177,7 @@ class Application:
         self.current_arrow_color = "white"
         self.arrow_size_var = tk.IntVar(value=taille_initiale)
         self.afficher_tous_ports = False
+        self.cut_count = 0
 
         self.root.title("Directions aleatoires")
         self.root.configure(bg="black")
@@ -288,6 +294,15 @@ class Application:
             bg="black",
         )
         self.status_label.grid(row=4, column=0, pady=(0, 8), sticky="ew")
+
+        self.serial_debug_label = tk.Label(
+            root,
+            text="Serie : aucune ligne recue | CUT recus : 0",
+            font=("Arial", STATUS_FONT_SIZE),
+            fg="gray",
+            bg="black",
+        )
+        self.serial_debug_label.grid(row=5, column=0, pady=(0, 8), sticky="ew")
 
         if serial is None:
             self.status_label.config(text=f"{PYSERIAL_MESSAGE}. Espace = test.")
@@ -527,7 +542,16 @@ class Application:
 
                 if type_message == "STATUS":
                     self.status_label.config(text=contenu)
+                elif type_message == "SERIAL":
+                    self.serial_debug_label.config(
+                        text=f"Serie : {contenu} | CUT recus : {self.cut_count}"
+                    )
                 elif type_message == "TRIGGER":
+                    if contenu == "capteur":
+                        self.cut_count += 1
+                        self.serial_debug_label.config(
+                            text=f"Serie : CUT | CUT recus : {self.cut_count}"
+                        )
                     self.afficher_direction_aleatoire()
                 elif type_message == "DIRECTION":
                     self.afficher_direction(contenu)

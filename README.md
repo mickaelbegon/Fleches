@@ -74,6 +74,13 @@ parmi ceux disponibles. Sur macOS, meme avec un cable USB-C, le Pico apparait
 souvent comme `/dev/cu.usbmodem...` ou `/dev/tty.usbmodem...`. Utiliser
 `Rafraichir` apres avoir branche le Pico, puis `Connecter`.
 
+Si le Pico fonctionne dans `screen` mais pas dans l'application, fermer `screen`
+avant de connecter le port dans l'application. Un seul programme peut lire le
+port serie a la fois. Dans `screen`, quitter avec `Ctrl-A`, puis `K`, puis `y`.
+
+L'application affiche aussi `Serie : ... | CUT recus : ...` en bas de l'ecran.
+Si `CUT recus` augmente, le Pico communique bien avec l'application.
+
 Les ports macOS comme `/dev/cu.debug-console` ou
 `/dev/cu.Bluetooth-Incoming-Port` ne correspondent pas au Pico et sont masques
 par defaut. Le bouton `Tous les ports` permet de les afficher pour diagnostiquer
