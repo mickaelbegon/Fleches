@@ -37,6 +37,19 @@ KEY_REPEAT_GUARD_MS = 160
 PYSERIAL_MESSAGE = (
     "pyserial non installe. Installer avec : python -m pip install pyserial"
 )
+PREFERRED_PORT_KEYWORDS = (
+    "pico",
+    "rp2",
+    "micropython",
+    "usb serial",
+    "usbmodem",
+    "usbserial",
+    "ttyacm",
+)
+SYSTEM_PORT_KEYWORDS = (
+    "bluetooth",
+    "debug-console",
+)
 
 
 def trouver_port_auto():
@@ -48,20 +61,8 @@ def trouver_port_auto():
     if not ports:
         return None
 
-    mots_cles = [
-        "pico",
-        "rp2",
-        "micropython",
-        "usb serial",
-        "ttyacm",
-        "usbmodem",
-    ]
-
     for port in ports:
-        texte = (
-            f"{port['device']} {port['description']} {port['manufacturer']}"
-        ).lower()
-        if any(mot in texte for mot in mots_cles):
+        if port_est_utile(port):
             return port["device"]
 
     if len(ports) == 1:
@@ -70,11 +71,25 @@ def trouver_port_auto():
     return None
 
 
-def lister_ports_disponibles():
+def texte_port(port):
+    return f"{port['device']} {port['description']} {port['manufacturer']}".lower()
+
+
+def port_est_systeme(port):
+    texte = texte_port(port)
+    return any(mot in texte for mot in SYSTEM_PORT_KEYWORDS)
+
+
+def port_est_utile(port):
+    texte = texte_port(port)
+    return any(mot in texte for mot in PREFERRED_PORT_KEYWORDS)
+
+
+def lister_ports_disponibles(inclure_systeme=False):
     if list_ports is None:
         return []
 
-    return [
+    ports = [
         {
             "device": port.device,
             "description": port.description or "",
@@ -82,6 +97,15 @@ def lister_ports_disponibles():
         }
         for port in list_ports.comports()
     ]
+
+    if inclure_systeme:
+        return ports
+
+    ports_utiles = [port for port in ports if port_est_utile(port)]
+    if ports_utiles:
+        return ports_utiles
+
+    return [port for port in ports if not port_est_systeme(port)]
 
 
 def lecteur_serie(port, baudrate, file_messages, arret):
@@ -147,6 +171,7 @@ class Application:
         self.current_arrow_size = taille_initiale
         self.current_arrow_color = "white"
         self.arrow_size_var = tk.IntVar(value=taille_initiale)
+        self.afficher_tous_ports = False
 
         self.root.title("Directions aleatoires")
         self.root.configure(bg="black")
@@ -243,6 +268,18 @@ class Application:
         )
         self.connect_button.pack(side="left")
 
+        self.all_ports_button = tk.Button(
+            self.port_frame,
+            text="Tous les ports",
+            command=self.basculer_affichage_ports,
+            bg=CONTROL_BG,
+            fg=CONTROL_FG,
+            activebackground=CONTROL_ACTIVE_BG,
+            activeforeground=CONTROL_FG,
+            highlightthickness=0,
+        )
+        self.all_ports_button.pack(side="left", padx=(8, 0))
+
         self.status_label = tk.Label(
             root,
             text="Echap ou q pour quitter. Barre espace = declencher une animation.",
@@ -257,6 +294,7 @@ class Application:
             self.refresh_button.config(state="disabled")
             self.connect_button.config(state="disabled")
             self.port_menu.config(state="disabled")
+            self.all_ports_button.config(state="disabled")
         else:
             self.actualiser_ports(selection=self.port)
             if self.port is None:
@@ -304,7 +342,7 @@ class Application:
         return "break"
 
     def actualiser_ports(self, selection=None):
-        ports = lister_ports_disponibles()
+        ports = lister_ports_disponibles(inclure_systeme=self.afficher_tous_ports)
         devices = [port["device"] for port in ports]
 
         if selection is not None and selection not in devices:
@@ -317,7 +355,15 @@ class Application:
             self.selected_port_var.set("")
             menu.add_command(label="Aucun port", command=lambda: None)
             self.connect_button.config(state="disabled")
-            self.status_label.config(text="Aucun port serie detecte.")
+            if self.afficher_tous_ports:
+                self.status_label.config(text="Aucun port serie detecte.")
+            else:
+                self.status_label.config(
+                    text=(
+                        "Aucun Pico/USB serie detecte. Branche le Pico, "
+                        "puis clique Rafraichir."
+                    )
+                )
             return
 
         for device in devices:
@@ -331,6 +377,20 @@ class Application:
             self.selected_port_var.set(selection)
         elif self.selected_port_var.get() not in devices:
             self.selected_port_var.set(devices[0])
+
+        if self.afficher_tous_ports:
+            self.status_label.config(text="Tous les ports sont affiches.")
+        elif self.port is None:
+            self.status_label.config(text="Port USB serie detecte.")
+
+    def basculer_affichage_ports(self):
+        self.afficher_tous_ports = not self.afficher_tous_ports
+        if self.afficher_tous_ports:
+            self.all_ports_button.config(text="Ports utiles")
+        else:
+            self.all_ports_button.config(text="Tous les ports")
+
+        self.actualiser_ports(selection=self.port)
 
     def connecter_port_selectionne(self):
         port = self.selected_port_var.get()

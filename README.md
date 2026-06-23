@@ -55,6 +55,11 @@ parmi ceux disponibles. Sur macOS, meme avec un cable USB-C, le Pico apparait
 souvent comme `/dev/cu.usbmodem...` ou `/dev/tty.usbmodem...`. Utiliser
 `Rafraichir` apres avoir branche le Pico, puis `Connecter`.
 
+Les ports macOS comme `/dev/cu.debug-console` ou
+`/dev/cu.Bluetooth-Incoming-Port` ne correspondent pas au Pico et sont masques
+par defaut. Le bouton `Tous les ports` permet de les afficher pour diagnostiquer
+si besoin.
+
 Ou fournir le port explicitement :
 
 ```bash
