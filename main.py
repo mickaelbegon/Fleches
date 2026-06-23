@@ -1,6 +1,5 @@
 from machine import Pin
 import time
-import sys
 
 PIN_CAPTEUR = 2
 FAISCEAU_COUPE_NIVEAU = 1
@@ -15,14 +14,13 @@ def faisceau_coupe():
 
 def envoyer_evenement():
     print("CUT")
-    try:
-        sys.stdout.flush()
-    except Exception:
-        pass
 
 
 etat_avant = faisceau_coupe()
 dernier_declenchement = time.ticks_ms() - COOLDOWN_MS
+
+print("PICO READY")
+print("Etat initial =", capteur.value())
 
 while True:
     etat_actuel = faisceau_coupe()
