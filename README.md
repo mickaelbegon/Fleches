@@ -12,7 +12,11 @@ Capteur photoelectrique -> Raspberry Pi Pico H -> USB serie -> laptop -> fleche 
 
 La barre espace declenche aussi une fleche animee. C'est pratique pour tester
 l'affichage sans capteur, et le comportement est le meme que lors d'une coupure
-du faisceau.
+du faisceau. Chaque direction est aussi annoncee vocalement (`Gauche`,
+`Devant` ou `Droite`) avec la voix systeme de macOS ou Windows, sans
+dependance Python supplementaire.
+Sous Windows, une voix francaise installee est privilegiee ; a defaut, la voix
+systeme par defaut est utilisee.
 
 ## Fichiers
 
@@ -101,12 +105,14 @@ python afficher_fleches_laptop.py --windowed
 python afficher_fleches_laptop.py --clear-after-ms 0
 python afficher_fleches_laptop.py --animation-ms 0
 python afficher_fleches_laptop.py --arrow-size 700
+python afficher_fleches_laptop.py --min-event-interval-s 30
 ```
 
 - `--windowed` : lance l'application dans une fenetre au lieu du plein ecran.
 - `--clear-after-ms` : temps d'affichage avant retour a `PRET`. Mettre `0` pour garder la fleche.
 - `--animation-ms` : duree de l'animation. Mettre `0` pour la desactiver.
 - `--arrow-size` : taille initiale de la fleche. Un slider permet ensuite de l'ajuster en direct.
+- `--min-event-interval-s` : delai minimal entre deux evenements. Sa valeur par defaut est de `30` secondes ; mettre `0` pour ne pas limiter les declenchements.
 
 ## Bloc de conditions
 

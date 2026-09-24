@@ -1,5 +1,9 @@
 import argparse
+import math
 import random
+import shutil
+import subprocess
+import sys
 import threading
 import time
 import tkinter as tk
@@ -14,15 +18,16 @@ except ModuleNotFoundError:
 
 
 DIRECTIONS = {
-    "UP": {"label": "AVANT"},
-    "LEFT": {"label": "GAUCHE"},
-    "RIGHT": {"label": "DROITE"},
+    "UP": {"label": "AVANT", "annonce": "Devant"},
+    "LEFT": {"label": "GAUCHE", "annonce": "Gauche"},
+    "RIGHT": {"label": "DROITE", "annonce": "Droite"},
 }
 
 DEFAULT_CLEAR_AFTER_MS = 3000
 DEFAULT_ANIMATION_MS = 280
 DEFAULT_ARROW_SIZE = 620
 DEFAULT_BLOCK_COUNT = 0
+DEFAULT_MIN_EVENT_INTERVAL_S = 30.0
 MIN_ARROW_SIZE = 260
 MAX_ARROW_SIZE = 950
 ARROW_HEAD_LENGTH_RATIO = 0.38
@@ -50,6 +55,17 @@ PREFERRED_PORT_KEYWORDS = (
 SYSTEM_PORT_KEYWORDS = (
     "bluetooth",
     "debug-console",
+)
+SCRIPT_SYNTHESE_WINDOWS = (
+    "Add-Type -AssemblyName System.Speech; "
+    "$synth = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
+    "$voixFrancaise = $synth.GetInstalledVoices() | "
+    "Where-Object { $_.VoiceInfo.Culture.Name -like 'fr-*' } | "
+    "Select-Object -First 1; "
+    "if ($null -ne $voixFrancaise) { "
+    "$synth.SelectVoice($voixFrancaise.VoiceInfo.Name) }; "
+    "$synth.Speak($args[0]); "
+    "$synth.Dispose()"
 )
 
 
@@ -109,6 +125,58 @@ def lister_ports_disponibles(inclure_systeme=False):
     return [port for port in ports if not port_est_systeme(port)]
 
 
+def secondes_non_negatives(valeur):
+    try:
+        secondes = float(valeur)
+    except ValueError as erreur:
+        raise argparse.ArgumentTypeError(
+            "la valeur doit etre un nombre de secondes"
+        ) from erreur
+
+    if not math.isfinite(secondes) or secondes < 0:
+        raise argparse.ArgumentTypeError(
+            "la valeur doit etre un nombre fini, positif ou nul"
+        )
+
+    return secondes
+
+
+def commande_synthese_vocale(texte):
+    if sys.platform == "darwin":
+        commande_say = shutil.which("say")
+        if commande_say is not None:
+            return [commande_say, texte]
+    elif sys.platform == "win32":
+        powershell = shutil.which("powershell.exe") or shutil.which("powershell")
+        if powershell is not None:
+            return [
+                powershell,
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                SCRIPT_SYNTHESE_WINDOWS,
+                texte,
+            ]
+
+    return None
+
+
+def prononcer(texte):
+    commande = commande_synthese_vocale(texte)
+    if commande is None:
+        return
+
+    try:
+        subprocess.run(
+            commande,
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except OSError:
+        pass
+
+
 def lecteur_serie(port, baudrate, file_messages, arret):
     if serial is None:
         file_messages.put(("STATUS", PYSERIAL_MESSAGE))
@@ -157,6 +225,7 @@ class Application:
         clear_after_ms,
         animation_ms,
         arrow_size,
+        min_event_interval_s,
         fullscreen,
     ):
         self.root = root
@@ -164,6 +233,7 @@ class Application:
         self.baudrate = baudrate
         self.clear_after_ms = clear_after_ms
         self.animation_ms = animation_ms
+        self.min_event_interval_s = min_event_interval_s
         taille_initiale = max(MIN_ARROW_SIZE, min(MAX_ARROW_SIZE, arrow_size))
 
         self.file_messages = Queue()
@@ -173,6 +243,7 @@ class Application:
         self.clear_job = None
         self.animation_jobs = []
         self.last_manual_trigger = 0.0
+        self.last_event_at = None
         self.current_direction = None
         self.current_arrow_size = taille_initiale
         self.current_arrow_color = "white"
@@ -391,6 +462,11 @@ class Application:
         self.current_arrow_color = "white"
         self.redessiner_fleche()
         self.text_label.config(text=data["label"])
+        threading.Thread(
+            target=prononcer,
+            args=(data["annonce"],),
+            daemon=True,
+        ).start()
         self.lancer_animation()
 
         if self.clear_job is not None:
@@ -403,6 +479,26 @@ class Application:
     def afficher_direction_aleatoire(self):
         direction = self.prochaine_direction()
         self.afficher_direction(direction)
+
+    def declencher_evenement(self, direction=None):
+        maintenant = time.monotonic()
+
+        if self.last_event_at is not None:
+            ecoule = maintenant - self.last_event_at
+            if ecoule < self.min_event_interval_s:
+                attente = self.min_event_interval_s - ecoule
+                self.status_label.config(
+                    text=f"Evenement ignore : attendre encore {attente:.1f} s."
+                )
+                return False
+
+        self.last_event_at = maintenant
+        if direction is None:
+            self.afficher_direction_aleatoire()
+        else:
+            self.afficher_direction(direction)
+
+        return True
 
     def declencher_manuellement(self, event=None):
         maintenant = time.monotonic()
@@ -675,9 +771,9 @@ class Application:
                         self.serial_debug_label.config(
                             text=f"Serie : CUT | CUT recus : {self.cut_count}"
                         )
-                    self.afficher_direction_aleatoire()
+                    self.declencher_evenement()
                 elif type_message == "DIRECTION":
-                    self.afficher_direction(contenu)
+                    self.declencher_evenement(contenu)
 
         except Empty:
             pass
@@ -720,6 +816,15 @@ def main():
         help="Taille initiale de la fleche. Ajustable ensuite avec le slider.",
     )
     parser.add_argument(
+        "--min-event-interval-s",
+        type=secondes_non_negatives,
+        default=DEFAULT_MIN_EVENT_INTERVAL_S,
+        help=(
+            "Delai minimal entre deux evenements en secondes "
+            f"(defaut : {DEFAULT_MIN_EVENT_INTERVAL_S:g}). 0 desactive la limite."
+        ),
+    )
+    parser.add_argument(
         "--windowed",
         action="store_true",
         help="Lancer dans une fenetre au lieu du plein ecran.",
@@ -736,6 +841,7 @@ def main():
         args.clear_after_ms,
         args.animation_ms,
         args.arrow_size,
+        args.min_event_interval_s,
         fullscreen=not args.windowed,
     )
     root.mainloop()
